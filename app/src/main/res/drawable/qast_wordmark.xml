@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="170dp" android:height="56dp"
+    android:viewportWidth="340" android:viewportHeight="112">
+    <!-- Small stylised Q scaled to wordmark height -->
+    <group android:translateX="0" android:translateY="21" android:scaleX="0.68" android:scaleY="0.68">
+      <path android:fillColor="#EAF4FA" android:fillType="evenOdd"
+          android:pathData="M54,14 A40,40 0,1 0,54.01 14 Z M54,25 A29,29 0,1 1,53.99 25 Z"/>
+      <path android:fillColor="#EAF4FA"
+          android:pathData="M70,70 L89,89 Q92,92 89,95 L84,100 Q81,102 78,99 L60,81 Z"/>
+      <path android:fillColor="#08B5F1"
+          android:pathData="M41,36 Q41,31 46,34 L76,51 Q81,54 76,57 L46,74 Q41,77 41,71 Z"/>
+    </group>
+    <!-- Three solid, flat cast arcs above the final letter -->
+    <path android:strokeColor="#08B5F1" android:strokeWidth="5"
+        android:strokeLineCap="round" android:fillColor="@android:color/transparent"
+        android:pathData="M294,34 Q305,35 307,47"/>
+    <path android:strokeColor="#08B5F1" android:strokeWidth="5"
+        android:strokeLineCap="round" android:fillColor="@android:color/transparent"
+        android:pathData="M294,22 Q318,24 320,47"/>
+    <path android:strokeColor="#08B5F1" android:strokeWidth="5"
+        android:strokeLineCap="round" android:fillColor="@android:color/transparent"
+        android:pathData="M294,10 Q330,12 334,47"/>
+</vector>
