@@ -2,11 +2,21 @@ package sg.qast.player
 
 import android.net.Uri
 import android.os.Bundle
+import android.app.Activity
+import android.content.Context
+import android.media.AudioManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -120,7 +130,7 @@ private fun QastApp() {
                                 modifier = Modifier.size(28.dp).offset(y = (-10).dp)
                             )
                         }
-                        Text("ALPHA 0.1", color = Muted, fontSize = 10.sp)
+                        Text("ALPHA 0.1.2", color = Muted, fontSize = 10.sp)
                         Spacer(Modifier.width(12.dp))
                         IconButton(onClick = { picker.launch(arrayOf("video/*", "audio/*", "application/octet-stream")) }) {
                             Icon(Icons.Default.AddCircleOutline, contentDescription = "Open media", tint = Ice)
@@ -187,7 +197,7 @@ private fun QastApp() {
                         Page.Settings -> {
                             Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(16.dp))
-                            SettingsLine("Version", "0.1.1-alpha")
+                            SettingsLine("Version", "0.1.2-alpha")
                             SettingsLine("Playback engine", "AndroidX Media3")
                             SettingsLine("Cast", "Planned: Google Cast + DLNA")
                             SettingsLine("Cloud", "Planned: OAuth and network connectors")
@@ -272,8 +282,75 @@ private fun SettingsLine(title: String, value: String) {
     HorizontalDivider(color = Surface)
 }
 
+/**
+ * Player touch zones occupy the outer 28% of the video area.
+ * Center playback controls and the bottom transport bar remain accessible.
+ * Swiping up increases brightness/volume; swiping down decreases it.
+ */
 @Composable
 private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, onCast: () -> Unit) {
+    val context = LocalContext.current
+    val activity = context as Activity
+    val audioManager = remember(context) {
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+    val maxVolume = remember(audioManager) {
+        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    }
+    val initialBrightness = remember(activity) {
+        activity.window.attributes.screenBrightness.takeIf { it >= 0f }
+            ?: (Settings.System.getInt(
+                context.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS, 128
+            ) / 255f)
+    }
+
+    var brightness by remember { mutableFloatStateOf(initialBrightness.coerceIn(0.02f, 1f)) }
+    var volume by remember {
+        mutableFloatStateOf(
+            audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume
+        )
+    }
+    var gestureKind by remember { mutableStateOf<String?>(null) }
+    var dragging by remember { mutableStateOf(false) }
+    var gestureFinished by remember { mutableIntStateOf(0) }
+    var videoHeightPx by remember { mutableIntStateOf(1) }
+
+    // Brightness is per-window; leave the user's system brightness unchanged and
+    // restore the window's previous override when leaving the playback screen.
+    DisposableEffect(activity) {
+        val previous = activity.window.attributes.screenBrightness
+        onDispose {
+            val params = activity.window.attributes
+            params.screenBrightness = previous
+            activity.window.attributes = params
+        }
+    }
+    LaunchedEffect(gestureFinished) {
+        if (gestureFinished > 0) {
+            delay(1100)
+            if (!dragging) gestureKind = null
+        }
+    }
+
+    fun updateBrightness(deltaY: Float) {
+        brightness = (brightness - deltaY / videoHeightPx).coerceIn(0.02f, 1f)
+        val params = activity.window.attributes
+        params.screenBrightness = brightness
+        activity.window.attributes = params
+    }
+
+    fun updateVolume(deltaY: Float) {
+        volume = (volume - deltaY / videoHeightPx).coerceIn(0f, 1f)
+        audioManager.setStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            (volume * maxVolume).roundToInt().coerceIn(0, maxVolume),
+            0
+        )
+        // Reflect the quantised device volume in the indicator.
+        volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVolume.toFloat()
+    }
+
     Column(Modifier.fillMaxSize().background(Color.Black)) {
         Row(
             modifier = Modifier.fillMaxWidth().background(Night).padding(horizontal = 6.dp),
@@ -288,16 +365,108 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, on
                 Icon(Icons.Default.Cast, contentDescription = "Cast (coming soon)", tint = Muted)
             }
         }
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    this.player = player
-                    useController = true
-                    controllerShowTimeoutMs = 3500
+        Box(
+            modifier = Modifier.fillMaxSize().onSizeChanged {
+                videoHeightPx = it.height.coerceAtLeast(1)
+            }
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        this.player = player
+                        useController = true
+                        controllerShowTimeoutMs = 3500
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+                update = { it.player = player }
+            )
+            // Leave the central 44% unobstructed. Exclude the lowest 88dp
+            // so seeking, navigation and the native timeline remain usable.
+            Row(Modifier.fillMaxSize().padding(bottom = 88.dp)) {
+                Box(
+                    Modifier.fillMaxHeight().weight(0.28f)
+                        .pointerInput(videoHeightPx) {
+                            detectVerticalDragGestures(
+                                onDragStart = {
+                                    dragging = true
+                                    gestureKind = "Brightness"
+                                },
+                                onVerticalDrag = { change, delta ->
+                                    change.consume()
+                                    updateBrightness(delta)
+                                },
+                                onDragEnd = {
+                                    dragging = false
+                                    gestureFinished++
+                                },
+                                onDragCancel = {
+                                    dragging = false
+                                    gestureFinished++
+                                }
+                            )
+                        }
+                )
+                Spacer(Modifier.fillMaxHeight().weight(0.44f))
+                Box(
+                    Modifier.fillMaxHeight().weight(0.28f)
+                        .pointerInput(videoHeightPx) {
+                            detectVerticalDragGestures(
+                                onDragStart = {
+                                    dragging = true
+                                    gestureKind = "Volume"
+                                    volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) /
+                                        maxVolume.toFloat()
+                                },
+                                onVerticalDrag = { change, delta ->
+                                    change.consume()
+                                    updateVolume(delta)
+                                },
+                                onDragEnd = {
+                                    dragging = false
+                                    gestureFinished++
+                                },
+                                onDragCancel = {
+                                    dragging = false
+                                    gestureFinished++
+                                }
+                            )
+                        }
+                )
+            }
+            if (gestureKind != null) {
+                Surface(
+                    color = Night.copy(alpha = 0.88f),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    Column(
+                        modifier = Modifier.width(140.dp).padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            if (gestureKind == "Brightness") Icons.Default.Brightness6
+                            else if (volume == 0f) Icons.Default.VolumeOff
+                            else Icons.Default.VolumeUp,
+                            contentDescription = null,
+                            tint = Ice,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(gestureKind ?: "", color = White, fontSize = 13.sp)
+                        Spacer(Modifier.height(10.dp))
+                        val level = if (gestureKind == "Brightness") brightness else volume
+                        LinearProgressIndicator(
+                            progress = { level },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Ice,
+                            trackColor = Muted.copy(alpha = 0.28f)
+                        )
+                        Spacer(Modifier.height(7.dp))
+                        Text("${(level * 100).roundToInt()}%", color = White, fontSize = 15.sp)
+                    }
                 }
-            },
-            modifier = Modifier.fillMaxSize(),
-            update = { it.player = player }
-        )
+            }
+        }
     }
 }
