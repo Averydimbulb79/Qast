@@ -6,6 +6,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: qast-android-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -25,8 +28,23 @@ jobs:
           gradle-version: '8.10.2'
       - name: Assemble debug APK
         run: gradle --no-daemon assembleDebug --stacktrace
+      - name: Prepare downloadable APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk Qast-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: Qast-v0.1.0-alpha-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: Qast-debug-apk
+          path: Qast-debug.apk
           if-no-files-found: error
+      - name: Publish latest alpha APK
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view latest-alpha >/dev/null 2>&1; then
+            gh release create latest-alpha --title "Qast Latest Alpha" --prerelease --notes "Automatic Android debug build from main. For testing only."
+          fi
+          gh release upload latest-alpha Qast-debug.apk --clobber
+        # The release upload uses the default GITHUB_TOKEN with scoped permission.
+        # Set contents: write at the job level for publishing on main.
+    permissions:
+      contents: write
