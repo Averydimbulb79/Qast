@@ -10,8 +10,8 @@ android {
         applicationId = "sg.qast.player"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-alpha"
+        versionCode = 2
+        versionName = "0.1.1-alpha"
     }
     buildTypes { release { isMinifyEnabled = false } }
     compileOptions {
