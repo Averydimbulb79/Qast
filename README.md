@@ -14,6 +14,10 @@ This initial Android foundation includes:
 
 This version uses Media3 only. LibVLC will be integrated in a later phase for expanded format support.
 
+## Build maintenance
+
+- 2026-10-22: CI fix for Android SDK setup: removed the obsolete `tools` package request, installed SDK platform 35 explicitly, and upgraded Java setup to v5. Build verification pending.
+
 ## Install a test APK
 
 Open **Actions** → **Android APK** → select a successful run → **Artifacts** → download **Qast-v0.1.0-alpha-debug**. Extract the ZIP and install `app-debug.apk` on an Android 9+ device. This is an unsigned-for-release debug build, not a Play Store package.
