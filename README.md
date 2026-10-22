@@ -2,9 +2,11 @@
 
 A native Android media player with a cinematic interface. Planned features include Google Cast, DLNA/UPnP, Google Drive, OneDrive, Dropbox, WebDAV, SMB/NAS, and broad format playback.
 
-## Current release: v0.1.0-alpha
+## Current release: v0.1.1-alpha
 
 This initial Android foundation includes:
+- Branded Qast logo in the main toolbar and adaptive Android launcher icon
+- Original flat-color vector mark with circular Q, play triangle and casting waves under `assets/qast-brand.svg`
 - Kotlin + Jetpack Compose dark UI with Home, Videos, Cloud and Settings navigation
 - Working local file picker using Android Storage Access Framework
 - Real playback using AndroidX Media3 ExoPlayer and its native playback controls
@@ -15,6 +17,8 @@ This initial Android foundation includes:
 This version uses Media3 only. LibVLC will be integrated in a later phase for expanded format support.
 
 ## Build maintenance
+
+- 2026-10-23: Added approved Qast logo identity and stylised Q launcher icon. The logo is stored as scalable vector resources and is used in the Android app UI.
 
 - 2026-10-22: CI fix for Android SDK setup: removed the obsolete `tools` package request, installed SDK platform 35 explicitly, and upgraded Java setup to v5. Build verification pending.
 
