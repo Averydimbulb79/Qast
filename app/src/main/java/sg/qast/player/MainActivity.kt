@@ -6,12 +6,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -99,8 +102,20 @@ private fun QastApp() {
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Qast", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = White,
-                            modifier = Modifier.weight(1f))
+                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(color = Color.White, shape = RoundedCornerShape(11.dp)) {
+                                Image(
+                                    painter = painterResource(R.drawable.qast_mark),
+                                    contentDescription = "Qast play logo",
+                                    modifier = Modifier.size(44.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Text("ast", fontSize = 30.sp, fontWeight = FontWeight.Light,
+                                letterSpacing = 3.sp, color = White)
+                            Spacer(Modifier.width(3.dp))
+                            Text("◔", color = Ice, fontSize = 17.sp, modifier = Modifier.offset(y = (-13).dp))
+                        }
                         Text("ALPHA 0.1", color = Muted, fontSize = 10.sp)
                         Spacer(Modifier.width(12.dp))
                         IconButton(onClick = { picker.launch(arrayOf("video/*", "audio/*", "application/octet-stream")) }) {
@@ -168,7 +183,7 @@ private fun QastApp() {
                         Page.Settings -> {
                             Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(16.dp))
-                            SettingsLine("Version", "0.1.0-alpha")
+                            SettingsLine("Version", "0.1.1-alpha")
                             SettingsLine("Playback engine", "AndroidX Media3")
                             SettingsLine("Cast", "Planned: Google Cast + DLNA")
                             SettingsLine("Cloud", "Planned: OAuth and network connectors")
