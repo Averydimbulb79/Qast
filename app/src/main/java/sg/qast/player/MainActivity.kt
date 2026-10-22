@@ -114,7 +114,11 @@ private fun QastApp() {
                             Text("ast", fontSize = 30.sp, fontWeight = FontWeight.Light,
                                 letterSpacing = 3.sp, color = White)
                             Spacer(Modifier.width(3.dp))
-                            Text("◔", color = Ice, fontSize = 17.sp, modifier = Modifier.offset(y = (-13).dp))
+                            Image(
+                                painter = painterResource(R.drawable.qast_cast_waves),
+                                contentDescription = "Casting waves",
+                                modifier = Modifier.size(28.dp).offset(y = (-10).dp)
+                            )
                         }
                         Text("ALPHA 0.1", color = Muted, fontSize = 10.sp)
                         Spacer(Modifier.width(12.dp))
