@@ -26,8 +26,8 @@ android {
         applicationId = "sg.qast.player"
         minSdk = 28
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.1.4-alpha"
+        versionCode = 6
+        versionName = "0.1.5-alpha"
     }
     buildTypes {
         getByName("debug") {
