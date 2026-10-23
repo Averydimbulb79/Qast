@@ -156,7 +156,7 @@ private fun QastApp() {
                                 modifier = Modifier.size(28.dp).offset(y = (-10).dp)
                             )
                         }
-                        Text("ALPHA 0.1.3", color = Muted, fontSize = 10.sp)
+                        Text("ALPHA 0.1.4", color = Muted, fontSize = 10.sp)
                         Spacer(Modifier.width(12.dp))
                         IconButton(onClick = { picker.launch(arrayOf("video/*", "audio/*", "application/octet-stream")) }) {
                             Icon(Icons.Default.AddCircleOutline, contentDescription = "Open media", tint = Ice)
@@ -223,7 +223,7 @@ private fun QastApp() {
                         Page.Settings -> {
                             Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(16.dp))
-                            SettingsLine("Version", "0.1.3-alpha")
+                            SettingsLine("Version", "0.1.4-alpha")
                             SettingsLine("Playback engine", "AndroidX Media3")
                             SettingsLine("Cast", "Google Cast alpha; AirPlay discovery; DLNA next")
                             SettingsLine("AirPlay", "Receivers found: ${airPlayDevices.size} (sending not yet supported)")
