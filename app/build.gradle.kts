@@ -3,7 +3,23 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+// A stable signing identity is essential for Android in-place updates.
+// CI injects these from GitHub Actions secrets; never commit a keystore.
+val qastKeystorePath = providers.environmentVariable("QAST_KEYSTORE_FILE").orNull
+val qastKeystorePassword = providers.environmentVariable("QAST_KEYSTORE_PASSWORD").orNull
+val hasStableSigning = !qastKeystorePath.isNullOrBlank() && !qastKeystorePassword.isNullOrBlank()
+
 android {
+    signingConfigs {
+        if (hasStableSigning) {
+            create("qastStable") {
+                storeFile = file(qastKeystorePath!!)
+                storePassword = qastKeystorePassword
+                keyAlias = "qast"
+                keyPassword = qastKeystorePassword
+            }
+        }
+    }
     namespace = "sg.qast.player"
     compileSdk = 35
     defaultConfig {
@@ -13,7 +29,14 @@ android {
         versionCode = 5
         versionName = "0.1.4-alpha"
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    buildTypes {
+        getByName("debug") {
+            if (hasStableSigning) {
+                signingConfig = signingConfigs.getByName("qastStable")
+            }
+        }
+        getByName("release") { isMinifyEnabled = false }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
