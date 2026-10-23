@@ -26,7 +26,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+      - name: Restore permanent signing identity
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          QAST_KEYSTORE_B64: ${{ secrets.QAST_KEYSTORE_B64 }}
+          QAST_KEYSTORE_PASSWORD: ${{ secrets.QAST_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$QAST_KEYSTORE_B64" ] || [ -z "$QAST_KEYSTORE_PASSWORD" ]; then
+            echo "::error::Set QAST_KEYSTORE_B64 and QAST_KEYSTORE_PASSWORD in Settings > Secrets and variables > Actions. See README signing setup."
+            exit 1
+          fi
+          printf '%s' "$QAST_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/qast-signing.jks"
+          chmod 600 "$RUNNER_TEMP/qast-signing.jks"
       - name: Assemble debug APK
+        env:
+          QAST_KEYSTORE_FILE: ${{ runner.temp }}/qast-signing.jks
+          QAST_KEYSTORE_PASSWORD: ${{ secrets.QAST_KEYSTORE_PASSWORD }}
         run: gradle --no-daemon assembleDebug --stacktrace
       - name: Prepare downloadable APK
         run: cp app/build/outputs/apk/debug/app-debug.apk Qast-debug.apk
