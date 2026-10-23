@@ -71,8 +71,7 @@ private fun QastApp() {
             castStatus = status
             if (status.startsWith("Sending video")) player.pause()
         }
-        try { casting.initialise() } catch (ex: Exception) { castStatus = "Cast setup: ${ex.message}" }
-        onDispose { casting.release() }
+         onDispose { casting.release() }
     }
     DisposableEffect(player) { onDispose { player.release() } }
 
@@ -96,10 +95,10 @@ private fun QastApp() {
         current = uri
         casting.selectedUri = uri
         casting.selectedMime = context.contentResolver.getType(uri) ?: "video/mp4"
-        if (casting.sessionConnected()) casting.castSelected()
+        player.stop()
         player.setMediaItem(MediaItem.fromUri(uri))
         player.prepare()
-        player.playWhenReady = true
+        player.play()
         recent.removeAll { it.second == uri }
         recent.add(0, name to uri)
     }
@@ -135,27 +134,14 @@ private fun QastApp() {
                 containerColor = Night,
                 topBar = {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
+                        modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                            Surface(color = Color.White, shape = RoundedCornerShape(11.dp)) {
-                                Image(
-                                    painter = painterResource(R.drawable.qast_mark),
-                                    contentDescription = "Qast play logo",
-                                    modifier = Modifier.size(44.dp)
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            Text("ast", fontSize = 30.sp, fontWeight = FontWeight.Light,
-                                letterSpacing = 3.sp, color = White)
-                            Spacer(Modifier.width(3.dp))
-                            Image(
-                                painter = painterResource(R.drawable.qast_cast_waves),
-                                contentDescription = "Casting waves",
-                                modifier = Modifier.size(28.dp).offset(y = (-10).dp)
-                            )
-                        }
+                        Image(
+                            painter = painterResource(R.drawable.qast_approved_wordmark),
+                            contentDescription = "Qast",
+                            modifier = Modifier.weight(1f).height(65.dp).wrapContentWidth(Alignment.Start)
+                        )
                         Text("ALPHA 0.1.4", color = Muted, fontSize = 10.sp)
                         Spacer(Modifier.width(12.dp))
                         IconButton(onClick = { picker.launch(arrayOf("video/*", "audio/*", "application/octet-stream")) }) {
@@ -325,6 +311,14 @@ private fun SettingsLine(title: String, value: String) {
  */
 @Composable
 private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, casting: QastCastController, castStatus: String) {
+    var showCastDevices by remember { mutableStateOf(false) }
+    var castSetupError by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(showCastDevices) {
+        if (showCastDevices) {
+            try { casting.initialise() }
+            catch (ex: Exception) { castSetupError = ex.message ?: "Google Cast unavailable" }
+        }
+    }
     val context = LocalContext.current
     val activity = context as Activity
     val audioManager = remember(context) {
@@ -388,9 +382,40 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, ca
         volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) / maxVolume.toFloat()
     }
 
+    if (showCastDevices) {
+        AlertDialog(
+            onDismissRequest = { showCastDevices = false },
+            title = { Text("Cast to a device") },
+            text = {
+                Column {
+                    Text("Select a Google Cast device on your Wi-Fi network. Open the device selector below.")
+                    Spacer(Modifier.height(12.dp))
+                    if (castSetupError != null) {
+                        Text(castSetupError ?: "", color = MaterialTheme.colorScheme.error)
+                    } else {
+                        AndroidView(
+                            factory = { ctx ->
+                                MediaRouteButton(ctx).apply {
+                                    CastButtonFactory.setUpMediaRouteButton(ctx, this)
+                                    contentDescription = "Open Google Cast receiver list"
+                                }
+                            },
+                            modifier = Modifier.size(56.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCastDevices = false }) { Text("Close") }
+            },
+            dismissButton = {
+                TextButton(onClick = { casting.stop(); showCastDevices = false }) { Text("Stop casting") }
+            }
+        )
+    }
     Column(Modifier.fillMaxSize().background(Color.Black)) {
         Row(
-            modifier = Modifier.fillMaxWidth().background(Night).padding(horizontal = 6.dp),
+            modifier = Modifier.fillMaxWidth().background(Night).statusBarsPadding().padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -398,21 +423,8 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, ca
             }
             Text(name, color = White, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f))
-            AndroidView(
-                factory = { ctx ->
-                    MediaRouteButton(ctx).apply {
-                        CastButtonFactory.setUpMediaRouteButton(ctx, this)
-                        contentDescription = "Choose Chromecast or Google Cast TV"
-                    }
-                },
-                modifier = Modifier.size(48.dp)
-            )
-            if (casting.sessionConnected()) {
-                IconButton(onClick = {
-                    casting.stop()
-                }) {
-                    Icon(Icons.Default.StopCircle, contentDescription = "Stop TV playback", tint = Ice)
-                }
+            IconButton(onClick = { showCastDevices = true }) {
+                Icon(Icons.Default.Cast, contentDescription = "Choose casting device", tint = Ice)
             }
         }
         if (castStatus.isNotEmpty()) {
