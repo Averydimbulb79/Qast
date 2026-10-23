@@ -76,6 +76,16 @@ private fun QastApp() {
     }
     DisposableEffect(player) { onDispose { player.release() } }
 
+    val airPlay = remember { AirPlayDiscovery(context) }
+    var airPlayDevices by remember { mutableStateOf<List<String>>(emptyList()) }
+    var airPlayMessage by remember { mutableStateOf("") }
+    DisposableEffect(airPlay) {
+        airPlay.onDevices = { airPlayDevices = it }
+        airPlay.onError = { airPlayMessage = it }
+        airPlay.start()
+        onDispose { airPlay.stop() }
+    }
+
     var page by remember { mutableStateOf(Page.Home) }
     var current by remember { mutableStateOf<Uri?>(null) }
     var currentName by remember { mutableStateOf("Video") }
@@ -215,7 +225,17 @@ private fun QastApp() {
                             Spacer(Modifier.height(16.dp))
                             SettingsLine("Version", "0.1.3-alpha")
                             SettingsLine("Playback engine", "AndroidX Media3")
-                            SettingsLine("Cast", "Google Cast alpha; DLNA next")
+                            SettingsLine("Cast", "Google Cast alpha; AirPlay discovery; DLNA next")
+                            SettingsLine("AirPlay", "Receivers found: ${airPlayDevices.size} (sending not yet supported)")
+                            if (airPlayDevices.isEmpty()) {
+                                Text(airPlayMessage.ifEmpty { "No AirPlay receivers discovered on this network." },
+                                    color = Muted, fontSize = 12.sp)
+                            } else {
+                                airPlayDevices.forEach { device ->
+                                    Text(device + " · Discovery only", color = Ice, fontSize = 13.sp,
+                                        modifier = Modifier.padding(vertical = 5.dp))
+                                }
+                            }
                             SettingsLine("Cloud", "Planned: OAuth and network connectors")
                             SettingsLine("Privacy", "No analytics or account sign-in")
                         }
