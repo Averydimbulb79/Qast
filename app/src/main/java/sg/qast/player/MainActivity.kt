@@ -65,10 +65,10 @@ private fun QastApp() {
     val context = LocalContext.current
     val player = remember { ExoPlayer.Builder(context).build() }
     val casting = remember { QastCastController(context) }
-    var castStatus by remember { mutableStateOf(\"\") }
+    var castStatus by remember { mutableStateOf("") }
     DisposableEffect(casting) {
         casting.onStatus = { castStatus = it }
-        try { casting.initialise() } catch (ex: Exception) { castStatus = \"Cast setup: \${ex.message}\" }
+        try { casting.initialise() } catch (ex: Exception) { castStatus = "Cast setup: ${ex.message}" }
         onDispose { casting.release() }
     }
     DisposableEffect(player) { onDispose { player.release() } }
@@ -82,7 +82,7 @@ private fun QastApp() {
         currentName = name
         current = uri
         casting.selectedUri = uri
-        casting.selectedMime = context.contentResolver.getType(uri) ?: \"video/mp4\"
+        casting.selectedMime = context.contentResolver.getType(uri) ?: "video/mp4"
         if (casting.sessionConnected()) casting.castSelected()
         player.setMediaItem(MediaItem.fromUri(uri))
         player.prepare()
