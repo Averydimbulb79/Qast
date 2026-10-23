@@ -8,9 +8,11 @@ The direct APK link becomes available after the first successful release-publish
 
 A native Android media player with a cinematic interface. Planned features include Google Cast, DLNA/UPnP, Google Drive, OneDrive, Dropbox, WebDAV, SMB/NAS, and broad format playback.
 
-## Current release: v0.1.3-alpha
+## Current release: v0.1.4-alpha
 
 This initial Android foundation includes:
+- Initial AirPlay receiver discovery via Android NSD/mDNS (`_airplay._tcp`), showing discovered device names in Settings
+- AirPlay pairing and media sending are NOT implemented yet; discovered devices cannot yet be selected for AirPlay playback
 - Google Cast SDK integration: Cast receiver picker, session lifecycle, automatic media handoff, stop control
 - Local video served over a temporary random-token LAN HTTP URL with byte-range support for seeking
 - Fixed right-edge media-volume gesture using a continuous accumulator instead of losing fractional movement
@@ -30,6 +32,9 @@ This initial Android foundation includes:
 This version uses Media3 only. LibVLC will be integrated in a later phase for expanded format support.
 
 ## Build maintenance
+
+- 2026-10-23: v0.1.4 adds read-only AirPlay device discovery. AirPlay streaming requires a sender protocol implementation and compatibility testing. The reference AirSonic project is noncommercial-licensed and has NOT been incorporated.
+
 
 - 2026-10-23: v0.1.3 implements the Google Cast sender, temporary local HTTP streaming, and fixes the volume gesture. Build and hardware casting remain to be verified. A Cast TV must share the phone's Wi-Fi. The receiver must support the source codec; there is no transcoding. DLNA discovery and control follow next.
 
