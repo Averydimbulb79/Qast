@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 
@@ -73,7 +75,19 @@ private fun QastApp() {
         }
          onDispose { casting.release() }
     }
-    DisposableEffect(player) { onDispose { player.release() } }
+    var playbackError by remember { mutableStateOf<String?>(null) }
+    DisposableEffect(player) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                playbackError = "Video playback failed: ${error.errorCodeName}"
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            player.removeListener(listener)
+            player.release()
+        }
+    }
 
     val airPlay = remember { AirPlayDiscovery(context) }
     var airPlayDevices by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -81,18 +95,22 @@ private fun QastApp() {
     DisposableEffect(airPlay) {
         airPlay.onDevices = { airPlayDevices = it }
         airPlay.onError = { airPlayMessage = it }
-        airPlay.start()
         onDispose { airPlay.stop() }
     }
 
     var page by remember { mutableStateOf(Page.Home) }
     var current by remember { mutableStateOf<Uri?>(null) }
     var currentName by remember { mutableStateOf("Video") }
+    LaunchedEffect(page, current) {
+        if (page == Page.Settings && current == null) airPlay.start()
+        else airPlay.stop()
+    }
     val recent = remember { mutableStateListOf<Pair<String, Uri>>() }
 
     fun play(name: String, uri: Uri) {
         currentName = name
         current = uri
+        playbackError = null
         casting.selectedUri = uri
         casting.selectedMime = context.contentResolver.getType(uri) ?: "video/mp4"
         player.stop()
@@ -127,7 +145,8 @@ private fun QastApp() {
                 name = currentName,
                 onBack = { current = null },
                 casting = casting,
-                castStatus = castStatus
+                castStatus = castStatus,
+                playbackError = playbackError
             )
         } else {
             Scaffold(
@@ -310,7 +329,7 @@ private fun SettingsLine(title: String, value: String) {
  * Swiping up increases brightness/volume; swiping down decreases it.
  */
 @Composable
-private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, casting: QastCastController, castStatus: String) {
+private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, casting: QastCastController, castStatus: String, playbackError: String?) {
     var showCastDevices by remember { mutableStateOf(false) }
     var castSetupError by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(showCastDevices) {
@@ -430,6 +449,10 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, ca
         if (castStatus.isNotEmpty()) {
             Text(castStatus, color = Ice, fontSize = 12.sp,
                 modifier = Modifier.fillMaxWidth().background(Night).padding(horizontal = 15.dp, vertical = 4.dp))
+        }
+        if (playbackError != null) {
+            Text(playbackError, color = MaterialTheme.colorScheme.error, fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth().background(Night).padding(horizontal = 15.dp, vertical = 6.dp))
         }
         Box(
             modifier = Modifier.fillMaxSize().onSizeChanged {
