@@ -5,6 +5,8 @@ import android.os.Bundle
 import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
+import androidx.mediarouter.app.MediaRouteButton
+import com.google.android.gms.cast.framework.CastButtonFactory
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -62,6 +64,13 @@ private enum class Page { Home, Videos, Cloud, Settings }
 private fun QastApp() {
     val context = LocalContext.current
     val player = remember { ExoPlayer.Builder(context).build() }
+    val casting = remember { QastCastController(context) }
+    var castStatus by remember { mutableStateOf(\"\") }
+    DisposableEffect(casting) {
+        casting.onStatus = { castStatus = it }
+        try { casting.initialise() } catch (ex: Exception) { castStatus = \"Cast setup: \${ex.message}\" }
+        onDispose { casting.release() }
+    }
     DisposableEffect(player) { onDispose { player.release() } }
 
     var page by remember { mutableStateOf(Page.Home) }
@@ -72,6 +81,9 @@ private fun QastApp() {
     fun play(name: String, uri: Uri) {
         currentName = name
         current = uri
+        casting.selectedUri = uri
+        casting.selectedMime = context.contentResolver.getType(uri) ?: \"video/mp4\"
+        if (casting.sessionConnected()) casting.castSelected()
         player.setMediaItem(MediaItem.fromUri(uri))
         player.prepare()
         player.playWhenReady = true
@@ -102,7 +114,8 @@ private fun QastApp() {
                 player = player,
                 name = currentName,
                 onBack = { current = null },
-                onCast = { /* Casting will be wired to Google Cast and DLNA in v0.3. */ }
+                casting = casting,
+                castStatus = castStatus
             )
         } else {
             Scaffold(
@@ -130,7 +143,7 @@ private fun QastApp() {
                                 modifier = Modifier.size(28.dp).offset(y = (-10).dp)
                             )
                         }
-                        Text("ALPHA 0.1.2", color = Muted, fontSize = 10.sp)
+                        Text("ALPHA 0.1.3", color = Muted, fontSize = 10.sp)
                         Spacer(Modifier.width(12.dp))
                         IconButton(onClick = { picker.launch(arrayOf("video/*", "audio/*", "application/octet-stream")) }) {
                             Icon(Icons.Default.AddCircleOutline, contentDescription = "Open media", tint = Ice)
@@ -197,9 +210,9 @@ private fun QastApp() {
                         Page.Settings -> {
                             Text("Settings", fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(16.dp))
-                            SettingsLine("Version", "0.1.2-alpha")
+                            SettingsLine("Version", "0.1.3-alpha")
                             SettingsLine("Playback engine", "AndroidX Media3")
-                            SettingsLine("Cast", "Planned: Google Cast + DLNA")
+                            SettingsLine("Cast", "Google Cast alpha; DLNA next")
                             SettingsLine("Cloud", "Planned: OAuth and network connectors")
                             SettingsLine("Privacy", "No analytics or account sign-in")
                         }
@@ -288,7 +301,7 @@ private fun SettingsLine(title: String, value: String) {
  * Swiping up increases brightness/volume; swiping down decreases it.
  */
 @Composable
-private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, onCast: () -> Unit) {
+private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, casting: QastCastController, castStatus: String) {
     val context = LocalContext.current
     val activity = context as Activity
     val audioManager = remember(context) {
@@ -312,6 +325,7 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, on
         )
     }
     var gestureKind by remember { mutableStateOf<String?>(null) }
+    var volumeAccumulator by remember { mutableFloatStateOf(volume) }
     var dragging by remember { mutableStateOf(false) }
     var gestureFinished by remember { mutableIntStateOf(0) }
     var videoHeightPx by remember { mutableIntStateOf(1) }
@@ -341,10 +355,10 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, on
     }
 
     fun updateVolume(deltaY: Float) {
-        volume = (volume - deltaY / videoHeightPx).coerceIn(0f, 1f)
+        volumeAccumulator = (volumeAccumulator - deltaY / videoHeightPx).coerceIn(0f, 1f)
         audioManager.setStreamVolume(
             AudioManager.STREAM_MUSIC,
-            (volume * maxVolume).roundToInt().coerceIn(0, maxVolume),
+            (volumeAccumulator * maxVolume).roundToInt().coerceIn(0, maxVolume),
             0
         )
         // Reflect the quantised device volume in the indicator.
@@ -361,9 +375,26 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, on
             }
             Text(name, color = White, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f))
-            IconButton(onClick = onCast, enabled = false) {
-                Icon(Icons.Default.Cast, contentDescription = "Cast (coming soon)", tint = Muted)
+            AndroidView(
+                factory = { ctx ->
+                    MediaRouteButton(ctx).apply {
+                        CastButtonFactory.setUpMediaRouteButton(ctx, this)
+                        contentDescription = "Choose Chromecast or Google Cast TV"
+                    }
+                },
+                modifier = Modifier.size(48.dp)
+            )
+            if (casting.sessionConnected()) {
+                IconButton(onClick = {
+                    casting.stop()
+                }) {
+                    Icon(Icons.Default.StopCircle, contentDescription = "Stop TV playback", tint = Ice)
+                }
             }
+        }
+        if (castStatus.isNotEmpty()) {
+            Text(castStatus, color = Ice, fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth().background(Night).padding(horizontal = 15.dp, vertical = 4.dp))
         }
         Box(
             modifier = Modifier.fillMaxSize().onSizeChanged {
@@ -417,6 +448,7 @@ private fun PlayerScreen(player: ExoPlayer, name: String, onBack: () -> Unit, on
                                     gestureKind = "Volume"
                                     volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) /
                                         maxVolume.toFloat()
+                                    volumeAccumulator = volume
                                 },
                                 onVerticalDrag = { change, delta ->
                                     change.consume()
