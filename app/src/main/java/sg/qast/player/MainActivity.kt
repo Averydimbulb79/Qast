@@ -67,7 +67,10 @@ private fun QastApp() {
     val casting = remember { QastCastController(context) }
     var castStatus by remember { mutableStateOf("") }
     DisposableEffect(casting) {
-        casting.onStatus = { castStatus = it }
+        casting.onStatus = { status ->
+            castStatus = status
+            if (status.startsWith("Sending video")) player.pause()
+        }
         try { casting.initialise() } catch (ex: Exception) { castStatus = "Cast setup: ${ex.message}" }
         onDispose { casting.release() }
     }
