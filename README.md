@@ -8,9 +8,13 @@ The direct APK link becomes available after the first successful release-publish
 
 A native Android media player with a cinematic interface. Planned features include Google Cast, DLNA/UPnP, Google Drive, OneDrive, Dropbox, WebDAV, SMB/NAS, and broad format playback.
 
-## Current release: v0.1.2-alpha
+## Current release: v0.1.3-alpha
 
 This initial Android foundation includes:
+- Google Cast SDK integration: Cast receiver picker, session lifecycle, automatic media handoff, stop control
+- Local video served over a temporary random-token LAN HTTP URL with byte-range support for seeking
+- Fixed right-edge media-volume gesture using a continuous accumulator instead of losing fractional movement
+- Casting status displayed in the player; compatible video codecs and same-Wi-Fi connection required
 - In-player vertical swipe gestures: left edge controls display brightness, right edge controls Android media volume
 - Compact percentage HUD for both gestures, with upward swipes increasing and downward swipes decreasing levels
 - Window-only brightness override restored when leaving the player; system-wide display settings are not modified
@@ -20,12 +24,15 @@ This initial Android foundation includes:
 - Working local file picker using Android Storage Access Framework
 - Real playback using AndroidX Media3 ExoPlayer and its native playback controls
 - In-session recently opened media list
-- Explicit placeholders for cloud accounts and casting; neither is implemented yet
+- Cloud accounts and DLNA support are planned; Google Cast support is alpha and requires device testing
 - Automated debug APK builds with GitHub Actions
 
 This version uses Media3 only. LibVLC will be integrated in a later phase for expanded format support.
 
 ## Build maintenance
+
+- 2026-10-23: v0.1.3 implements the Google Cast sender, temporary local HTTP streaming, and fixes the volume gesture. Build and hardware casting remain to be verified. A Cast TV must share the phone's Wi-Fi. The receiver must support the source codec; there is no transcoding. DLNA discovery and control follow next.
+
 
 - 2026-10-23: Added a permanent direct APK download link to the README and automated publication of the latest successful alpha APK as a GitHub Release asset. Release publishing must be verified on GitHub Actions.
 
@@ -62,7 +69,7 @@ The APK will be created at `app/build/outputs/apk/debug/app-debug.apk`.
 | Version | Goal |
 | --- | --- |
 | v0.2 | Enhanced media library and cloud connector foundation, Google Drive |
-| v0.3 | Google Cast and DLNA/UPnP |
+| v0.3 | Harden Google Cast support and add DLNA/UPnP receiver discovery and controls |
 | v0.4 | OneDrive, Dropbox, WebDAV/Nextcloud |
 | v0.5 | SMB/NAS and downloads |
 | v0.6 | Advanced subtitles, audio and gesture controls |
@@ -70,7 +77,7 @@ The APK will be created at `app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Architecture
 
-The UI is implemented with Compose; actual playback is currently handled by Media3. The platform architecture will be split into independent playback, cloud source and casting modules as those capabilities are implemented. Do not store OAuth secrets or access tokens in source control.
+The UI is implemented with Compose; local playback uses Media3. Google Cast uses the official Google Cast sender SDK and a temporary, random-token LAN HTTP media endpoint. This is not screen mirroring. Casting stops if the Android process is terminated. Network compatibility and media decoding depend on the receiver. The platform architecture will be split into independent playback, cloud source and casting modules as those capabilities are implemented. Do not store OAuth secrets or access tokens in source control.
 
 ## Project links
 
